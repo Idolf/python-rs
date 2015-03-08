@@ -1,0 +1,15 @@
+[package]
+
+name = "rust-python"
+version = "0.0.1"
+authors = ["Mathias Svensson <idolf@pwnies.dk>"]
+
+[lib]
+name = "test"
+crate-type = ["dylib"]
+
+[dependencies]
+libc = "0.1"
+
+[dependencies.python27-sys]
+version = "*"
