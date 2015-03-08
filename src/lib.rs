@@ -20,10 +20,10 @@ unsafe extern "C" fn foo(_slf: *mut py::PyObject, args: *mut py::PyObject) -> *m
 
 const METHODS: [AltPyMethodDef ; 2] = [
     AltPyMethodDef {
-        ml_name: &[0x41i8, 0x42, 0] as *const i8,
+        ml_name: &[b'A', b'B', 0] as *const u8 as *const i8,
         ml_meth: Some(foo),
         ml_flags: 1,
-        ml_doc: &[0x41i8, 0x42, 0] as *const i8,
+        ml_doc: &[b'A', b'B', 0] as *const u8 as *const i8,
     },
     AltPyMethodDef {
         ml_name: 0 as *const i8,
@@ -37,9 +37,9 @@ const METHODS: [AltPyMethodDef ; 2] = [
 pub unsafe extern "C" fn initfoo() {
     use std::mem::transmute;
 
-    py::Py_InitModule4(&[102i8, 111, 111, 0] as *const i8,
+    py::Py_InitModule4(&[b'f', b'o', b'o', 0] as *const u8 as *const i8,
                        transmute(&METHODS),
-                       &[102i8, 111, 111, 0] as *const i8,
+                       &[b'l', b'o', b'l', 0] as *const u8 as *const i8,
                        0 as *mut py::PyObject,
                        1013);
 }
