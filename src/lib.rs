@@ -6,7 +6,7 @@ pub use objects::{PyVal, PyObj, PyBox, PyTuple, none};
 mod objects;
 
 /* This is the user-implemented method */
-fn foo(args: &'static PyObj) -> PyBox<PyObj> {
+fn foo(args: &PyObj) -> PyBox<PyObj> {
     match args.upgrade::<PyTuple>() {
         Some(v)  => {
             println!("Yes, args is a tuple!");
@@ -22,8 +22,10 @@ fn foo(args: &'static PyObj) -> PyBox<PyObj> {
 /* Boiler plate for creating the module.
    Should be put inside a macro at some point. */
 unsafe extern "C" fn foo_raw(_slf: *mut raw::PyObject, args: *mut raw::PyObject) -> *mut raw::PyObject {
-    let ptr: &PyObj = PyObj::from_ptr(args);
-    foo(ptr).into_ptr()
+    fn foo_helper(args: &PyObj) -> PyBox<PyObj> {
+        foo(args)
+    }
+    foo_helper(PyObj::from_ptr(args)).into_ptr()
 }
 
 #[repr(C)]
