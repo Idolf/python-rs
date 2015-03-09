@@ -1,11 +1,8 @@
+extern crate "python27-sys" as raw;
 use std::mem::{forget, transmute};
 use std::ops::Deref;
-use raw;
 
 pub enum PyObj {}
-pub enum PyTuple {}
-pub enum PyNone {}
-
 pub struct PyBox<T: PyVal>(*mut T);
 
 pub trait PyVal: Sized {
@@ -34,6 +31,7 @@ pub trait PyVal: Sized {
         }
     }
 
+    #[inline(always)]
     fn upgrade_from(&PyObj) -> Option<&Self>;
 }
 
@@ -62,6 +60,13 @@ impl<T: PyVal> PyBox<T> {
         } else {
             Err(val)
         }
+    }
+}
+
+impl<T: PyVal> Clone for PyBox<T> {
+    #[inline(always)]
+    fn clone(&self) -> PyBox<T> {
+        self.take()
     }
 }
 
@@ -106,49 +111,27 @@ impl PyVal for PyObj {
     }
 }
 
-impl PyVal for PyTuple {
+pub trait ToPython {
+    fn python(&self) -> PyBox<PyObj>;
+}
+
+impl<T: PyVal> ToPython for T {
     #[inline(always)]
-    fn upgrade_from(obj : &PyObj) -> Option<&PyTuple> {
-        unsafe {
-            if raw::PyTuple_CheckExact(obj.to_ptr()) != 0 {
-                Some(transmute(obj))
-            } else {
-                None
-            }
-        }
+    fn python(&self) -> PyBox<PyObj> {
+        self.take().downgrade()
     }
 }
 
-impl PyVal for PyNone {
+impl<T: PyVal> ToPython for PyBox<T> {
     #[inline(always)]
-    fn upgrade_from(obj: &PyObj) -> Option<&PyNone> {
-        unsafe {
-            if (obj as *const PyObj as *const raw::PyObject) == raw::Py_None() as *const raw::PyObject {
-                Some(transmute(obj))
-            } else {
-                None
-            }
-        }
+    fn python(&self) -> PyBox<PyObj> {
+        self.take().downgrade()
     }
 }
 
-#[inline(always)]
-pub fn none() -> &'static PyNone {
-    unsafe {
-        transmute(raw::Py_None())
-    }
-}
-
-impl PyTuple {
-    pub fn as_slice(&self) -> &[&PyObj] {
-        use std::slice;
-        unsafe {
-            let self_raw = self.to_ptr() as *const raw::PyTupleObject;
-            let size = (*self_raw).ob_size;
-            let objs: &[*mut raw::PyObject ; 1] = &(*self_raw).ob_item;
-            let objs: *const *mut raw::PyObject = objs as *const *mut raw::PyObject;
-            let objs: *const &PyObj             = objs as *const &PyObj;
-            slice::from_raw_parts(objs, size as usize)
-        }
+impl<'a, T: ToPython> ToPython for &'a T {
+    #[inline(always)]
+    fn python(&self) -> PyBox<PyObj> {
+        (*self).python()
     }
 }

@@ -2,15 +2,18 @@
 extern crate "python27-sys" as raw;
 extern crate libc;
 
-pub use objects::{PyVal, PyObj, PyBox, PyTuple, none};
-mod objects;
+pub use object::*;
+pub use tuple::*;
+pub use list::*;
+pub use none::*;
+mod object;
+mod tuple;
+mod list;
+mod none;
 
 /* This is the user-implemented method */
-fn foo(args: &PyTuple) -> PyBox<PyObj> {
-    match args.as_slice() {
-        [v] => v.take(),
-        _ => none().take().downgrade()
-    }
+fn foo(args: &PyTuple) -> (&PyTuple, &PyTuple, (Option<&PyObj>, &PyNone, ())) {
+    (args, args, (args[0], none(), ()))
 }
 
 /* Boiler plate for creating the module.
@@ -21,8 +24,7 @@ unsafe extern "C" fn foo_raw(_slf: *mut raw::PyObject, args: *mut raw::PyObject)
     fn foo_helper(args: &PyObj) -> PyBox<PyObj> {
         match args.upgrade::<PyTuple>() {
             Some(args) => {
-                let res: PyBox<_> = foo(args);
-                res.downgrade()
+                foo(args).python()
             },
             None => panic!("Could not upgrade args into a tuple")
         }
