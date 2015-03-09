@@ -138,3 +138,17 @@ pub fn none() -> &'static PyNone {
         transmute(raw::Py_None())
     }
 }
+
+impl PyTuple {
+    pub fn as_slice(&self) -> &[&PyObj] {
+        use std::slice;
+        unsafe {
+            let self_raw = self.to_ptr() as *const raw::PyTupleObject;
+            let size = (*self_raw).ob_size;
+            let objs: &[*mut raw::PyObject ; 1] = &(*self_raw).ob_item;
+            let objs: *const *mut raw::PyObject = objs as *const *mut raw::PyObject;
+            let objs: *const &PyObj             = objs as *const &PyObj;
+            slice::from_raw_parts(objs, size as usize)
+        }
+    }
+}

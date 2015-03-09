@@ -1,4 +1,4 @@
-#![feature(unsafe_destructor)]
+#![feature(unsafe_destructor, core)]
 extern crate "python27-sys" as raw;
 extern crate libc;
 
@@ -6,24 +6,26 @@ pub use objects::{PyVal, PyObj, PyBox, PyTuple, none};
 mod objects;
 
 /* This is the user-implemented method */
-fn foo(args: &PyObj) -> PyBox<PyObj> {
-    match args.upgrade::<PyTuple>() {
-        Some(v)  => {
-            println!("Yes, args is a tuple!");
-            v.take().downgrade()
-        }
-        None => {
-            println!("No, args is not a tuple!");
-            none().take().downgrade()
-        }
+fn foo(args: &PyTuple) -> PyBox<PyObj> {
+    match args.as_slice() {
+        [v] => v.take(),
+        _ => none().take().downgrade()
     }
 }
 
 /* Boiler plate for creating the module.
    Should be put inside a macro at some point. */
 unsafe extern "C" fn foo_raw(_slf: *mut raw::PyObject, args: *mut raw::PyObject) -> *mut raw::PyObject {
+    /* This helper function is a weird hack to prevent the lifetime from exceeding
+       he current function call. */
     fn foo_helper(args: &PyObj) -> PyBox<PyObj> {
-        foo(args)
+        match args.upgrade::<PyTuple>() {
+            Some(args) => {
+                let res: PyBox<_> = foo(args);
+                res.downgrade()
+            },
+            None => panic!("Could not upgrade args into a tuple")
+        }
     }
     foo_helper(PyObj::from_ptr(args)).into_ptr()
 }
