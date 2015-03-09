@@ -10,10 +10,15 @@ pub struct PyBox<T: PyVal>(*mut T);
 
 pub trait PyVal: Sized {
     #[inline(always)]
-    fn ptr(&self) -> *mut raw::PyObject {
+    unsafe fn to_ptr(&self) -> *mut raw::PyObject {
         self as *const Self
              as *mut Self
              as *mut raw::PyObject
+    }
+
+    #[inline(always)]
+    unsafe fn from_ptr<'a>(ptr: *mut raw::PyObject) -> &'a PyObj {
+        transmute(ptr)
     }
 
     #[inline(always)]
@@ -21,21 +26,42 @@ pub trait PyVal: Sized {
         unsafe { transmute(self) }
     }
 
-    fn upgrade_from(&PyObj) -> Option<&Self>;
-
     #[inline(always)]
     fn take(&self) -> PyBox<Self> {
         unsafe {
-            raw::Py_INCREF(self.ptr());
+            raw::Py_INCREF(self.to_ptr());
             PyBox(self as *const Self as *mut Self)
         }
     }
+
+    fn upgrade_from(&PyObj) -> Option<&Self>;
 }
 
 impl<T: PyVal> PyBox<T> {
     #[inline(always)]
     pub fn downgrade(self) -> PyBox<PyObj> {
         unsafe { transmute(self) }
+    }
+
+    #[inline(always)]
+    pub unsafe fn from_ptr(ptr: *mut raw::PyObject) -> PyBox<T> {
+        PyBox(ptr as *mut T)
+    }
+
+    #[inline(always)]
+    pub unsafe fn into_ptr(self) -> *mut raw::PyObject {
+        let res = self.0;
+        forget(self);
+        res as *mut raw::PyObject
+    }
+
+    #[inline(always)]
+    pub fn upgrade_from(val: PyBox<PyObj>) -> Result<PyBox<T>, PyBox<PyObj>> {
+        if let Some(_) = (*val).upgrade::<T>() {
+            Ok(unsafe { transmute(val) })
+        } else {
+            Err(val)
+        }
     }
 }
 
@@ -44,33 +70,12 @@ impl PyObj {
     pub fn upgrade<T: PyVal>(&self) -> Option<&T> {
         PyVal::upgrade_from(self)
     }
-
-    #[inline(always)]
-    pub unsafe fn from_ptr<'a>(ptr: *mut raw::PyObject) -> &'a PyObj {
-        transmute(ptr)
-    }
 }
 
 impl PyBox<PyObj> {
     #[inline(always)]
     pub fn upgrade<T: PyVal>(self) -> Result<PyBox<T>, PyBox<PyObj>> {
-        if let Some(_) = (*self).upgrade::<T>() {
-            Ok(unsafe { transmute(self) })
-        } else {
-            Err(self)
-        }
-    }
-
-    #[inline(always)]
-    pub unsafe fn from_ptr(ptr: *mut raw::PyObject) -> PyBox<PyObj> {
-        PyBox(ptr as *mut PyObj)
-    }
-
-    #[inline(always)]
-    pub unsafe fn into_ptr(self) -> *mut raw::PyObject {
-        let res = self.0;
-        forget(self);
-        res as *mut raw::PyObject
+        PyBox::upgrade_from(self)
     }
 }
 
@@ -88,7 +93,7 @@ impl<T: PyVal> Drop for PyBox<T> {
     #[inline(always)]
     fn drop(&mut self) {
         unsafe {
-            raw::Py_DECREF((*self.0).ptr());
+            raw::Py_DECREF((*self.0).to_ptr());
             self.0 = 0 as *mut T;
         }
     }
@@ -105,7 +110,7 @@ impl PyVal for PyTuple {
     #[inline(always)]
     fn upgrade_from(obj : &PyObj) -> Option<&PyTuple> {
         unsafe {
-            if raw::PyTuple_CheckExact(obj.ptr()) != 0 {
+            if raw::PyTuple_CheckExact(obj.to_ptr()) != 0 {
                 Some(transmute(obj))
             } else {
                 None
