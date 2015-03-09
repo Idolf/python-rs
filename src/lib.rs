@@ -7,13 +7,13 @@ mod objects;
 
 /* This is the user-implemented method */
 fn foo(args: &PyObj) -> PyBox<PyObj> {
-    match args.take().upgrade::<PyTuple>() {
-        Ok(v)  => {
-            println!("Yes, it is a tuple!");
-            v.downgrade()
+    match args.upgrade::<PyTuple>() {
+        Some(v)  => {
+            println!("Yes, args is a tuple!");
+            v.take().downgrade()
         }
-        Err(_) => {
-            println!("No, it is not a tuple!");
+        None => {
+            println!("No, args is not a tuple!");
             none().take().downgrade()
         }
     }
