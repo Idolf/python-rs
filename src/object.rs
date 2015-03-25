@@ -75,6 +75,11 @@ impl PyObj {
     pub fn upgrade<T: PyVal>(&self) -> Option<&T> {
         PyVal::upgrade_from(self)
     }
+
+    #[inline(always)]
+    pub fn unpython<T: FromPython>(&self) -> Option<T> {
+        T::from_python(self)
+    }
 }
 
 impl PyBox<PyObj> {
@@ -134,4 +139,8 @@ impl<'a, T: ToPython> ToPython for &'a T {
     fn python(&self) -> PyBox<PyObj> {
         (*self).python()
     }
+}
+
+pub trait FromPython {
+    fn from_python(val: &PyObj) -> Option<Self>;
 }

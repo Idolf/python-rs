@@ -44,10 +44,10 @@ unsafe impl Sync for AltPyMethodDef {}
 
 const METHODS: [AltPyMethodDef ; 2] = [
     AltPyMethodDef {
-        ml_name: &[b'f', b'o', b'o', 0] as *const u8 as *const i8,
+        ml_name: b"foo\0" as *const u8 as *const i8,
         ml_meth: Some(foo_raw),
         ml_flags: 1,
-        ml_doc: &[b'd', b'o', b'c', 0] as *const u8 as *const i8,
+        ml_doc: b"doc\0" as *const u8 as *const i8,
     },
     AltPyMethodDef {
         ml_name: 0 as *const i8,
@@ -60,9 +60,9 @@ const METHODS: [AltPyMethodDef ; 2] = [
 #[no_mangle]
 pub unsafe extern "C" fn initfoo() {
     use std::mem::transmute;
-    raw::Py_InitModule4(&[b'f', b'o', b'o', 0] as *const u8 as *const i8,
+    raw::Py_InitModule4(b"foo\0" as *const u8 as *const i8,
                        transmute(&METHODS),
-                       &[b'l', b'o', b'l', 0] as *const u8 as *const i8,
+                       b"lol\0" as *const u8 as *const i8,
                        0 as *mut raw::PyObject,
                        1013);
 }
